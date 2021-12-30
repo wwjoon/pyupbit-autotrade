@@ -25,4 +25,4 @@ df['dd'] = (df['hpr'].cummax() - df['hpr']) / df['hpr'].cummax() * 100
 print("MDD(%): ", df['dd'].max())
 
 # 엑셀로 출력
-df.to_excel("OHLCV_INFO.xlsx")
+df.to_excel("ohlcv_info.xlsx")

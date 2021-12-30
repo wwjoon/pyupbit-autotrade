@@ -1,2 +1,2 @@
-.env
-.xlsx
+*.env
+*.xlsx
