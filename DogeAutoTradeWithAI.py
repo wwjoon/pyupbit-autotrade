@@ -36,6 +36,27 @@ def get_current_price(ticker):
     """현재가 조회"""
     return pyupbit.get_orderbook(ticker=ticker)["orderbook_units"][0]["ask_price"]
 
+predicted_close_price = 0
+def predict_price(ticker):
+    """Prophet으로 당일 종가 가격 예측"""
+    global predicted_close_price
+    df = pyupbit.get_ohlcv(ticker, interval="minute60")
+    df = df.reset_index()
+    df['ds'] = df['index']
+    df['y'] = df['close']
+    data = df[['ds','y']]
+    model = Prophet()
+    model.fit(data)
+    future = model.make_future_dataframe(periods=24, freq='H')
+    forecast = model.predict(future)
+    closeDf = forecast[forecast['ds'] == forecast.iloc[-1]['ds'].replace(hour=9)]
+    if len(closeDf) == 0:
+        closeDf = forecast[forecast['ds'] == data.iloc[-1]['ds'].replace(hour=9)]
+    closeValue = closeDf['yhat'].values[0]
+    predicted_close_price = closeValue
+predict_price("KRW-DOGE")
+schedule.every().hour.do(lambda: predict_price("KRW-DOGE"))
+
 # 로그인
 upbit = pyupbit.Upbit(access, secret)
 print("autotrade start")
@@ -44,14 +65,14 @@ print("autotrade start")
 while True:
     try:
         now = datetime.datetime.now()
-        start_time = get_start_time("KRW-DOGE") # 9:00
-        end_time = start_time + datetime.timedelta(days=1) # 9:00 + 1일
+        start_time = get_start_time("KRW-DOGE")
+        end_time = start_time + datetime.timedelta(days=1)
+        schedule.run_pending()
 
-        # 9:00 < 현재 < 8:59:50
         if start_time < now < end_time - datetime.timedelta(seconds=10):
             target_price = get_target_price("KRW-DOGE", k)
             current_price = get_current_price("KRW-DOGE")
-            if target_price < current_price:
+            if target_price < current_price and current_price < predicted_close_price:
                 krw = get_balance("KRW")
                 if krw > 5000:
                     upbit.buy_market_order("KRW-DOGE", krw*0.9995) # 수수료 감안해서 매수
@@ -64,3 +85,15 @@ while True:
     except Exception as e:
         print(e)
         time.sleep(1)
+
+# https://docs.conda.io/en/latest/miniconda.html
+# 위 홈페이지에서 Python 3.8 버전의 Miniconda를 다운 받아서 같은 방법으로 설치해주세요.
+# 설치 후, VS code에서 Python 3.8.10 64-bit ('base': conda) 로 선택 후에 똑같은 방법으로 다시 cmd 창에서 아래 명령어를 실행해 주세요.
+# pip install pyupbit
+# pip install schedule
+# conda install -c conda-forge fbprophet
+# pip install pystan --upgrade
+# 그리고, python 파일 실행하시면 됩니다.
+
+# Importing plotly failed. Interactive plots will not work. 발생 시
+# pip install --upgrade plotly 실행
