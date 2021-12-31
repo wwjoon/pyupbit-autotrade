@@ -2,6 +2,8 @@ import os
 import time
 import pyupbit
 import datetime
+import schedule
+from fbprophet import Prophet
 from dotenv import load_dotenv
 
 load_dotenv()
